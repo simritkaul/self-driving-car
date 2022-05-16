@@ -14,6 +14,9 @@ class Car {
         // When moving diagonally we don't want to have maxSpeed same as straightline
         this.angle = 0;
 
+        this.damaged = false;
+
+        this.sensor = new Sensor(this);
         this.controls = new Controls();
     }
 
@@ -35,8 +38,49 @@ class Car {
     //     }
     // }
 
-    update() {
-        this.#move();
+    update(roadBorders) {
+        if (!this.damaged) {
+            this.#move();
+            this.polygon = this.#createPolygon();
+            this.damaged = this.#assessDamage(roadBorders);
+        }
+        this.sensor.update(roadBorders);
+    }
+
+    #assessDamage(roadBorders) {
+        for (let i = 0; i < roadBorders.length; i++) {
+            if (polyIntersect(this.polygon, roadBorders[i])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // We create this function to help us find the corners of the car for collision detection
+    #createPolygon() {
+        const points = [];
+        const rad = Math.hypot(this.w, this.h) / 2;
+        const alpha = Math.atan2(this.w, this.h);
+        points.push({
+            x: this.x - Math.sin(this.angle - alpha) * rad,
+            y: this.y - Math.cos(this.angle - alpha) * rad,
+        });
+
+        points.push({
+            x: this.x - Math.sin(this.angle + alpha) * rad,
+            y: this.y - Math.cos(this.angle + alpha) * rad,
+        });
+
+        points.push({
+            x: this.x - Math.sin(Math.PI + this.angle - alpha) * rad,
+            y: this.y - Math.cos(Math.PI + this.angle - alpha) * rad,
+        });
+
+        points.push({
+            x: this.x - Math.sin(Math.PI + this.angle + alpha) * rad,
+            y: this.y - Math.cos(Math.PI + this.angle + alpha) * rad,
+        });
+        return points;
     }
 
     #move() {
@@ -85,14 +129,30 @@ class Car {
     }
 
     draw(ctx) {
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        ctx.rotate(-this.angle);
+        // ctx.save();
+        // ctx.translate(this.x, this.y);
+        // ctx.rotate(-this.angle);
+
+        // ctx.beginPath();
+        // // We'll represent car as a simple rectangle
+        // ctx.rect(-this.w / 2, -this.h / 2, this.w, this.h);
+        // ctx.fill();
+        // ctx.restore();
+
+        if (this.damaged) {
+            ctx.fillStyle = "gray";
+        } else {
+            ctx.fillStyle = "black";
+        }
 
         ctx.beginPath();
-        // We'll represent car as a simple rectangle
-        ctx.rect(-this.w / 2, -this.h / 2, this.w, this.h);
+
+        ctx.moveTo(this.polygon[0].x, this.polygon[0].y);
+        for (let i = 1; i < this.polygon.length; i++) {
+            ctx.lineTo(this.polygon[i].x, this.polygon[i].y);
+        }
         ctx.fill();
-        ctx.restore();
+
+        this.sensor.draw(ctx);
     }
 }
